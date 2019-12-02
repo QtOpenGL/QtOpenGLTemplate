@@ -1,17 +1,17 @@
 #include <QDebug>
 
-#include "baseoglwidget.h"
-
+#include "baseGLwindow.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 // Give default values for: the perspective projection parameters
-// the log level and the rich text is disabled
-BaseOGLWidget::BaseOGLWidget(QWidget *parent) : QOpenGLWidget(parent),
-    mRichText(false), mLogLevel(0), mFovY(60.0f), mNear(0.1f), mFar(1000.0f) {
+// the log level is in only errors and the rich text is disabled
+BaseGLWindow::BaseGLWindow() : mRichText(false), mLogLevel(0), mFovY(60.0f), mNear(0.1f),
+mFar(1000.0f), mScreenShoots(0){
+
 }
 
-BaseOGLWidget::~BaseOGLWidget() {
+BaseGLWindow::~BaseGLWindow() {
     // If you have an active OpenGL debug error logger stop it
     stopLog();
     // If you ever had a logger destroy it
@@ -20,21 +20,20 @@ BaseOGLWidget::~BaseOGLWidget() {
     }
 }
 
-void BaseOGLWidget::logLevel(int level) {
-    // Only two log levels so far
+void BaseGLWindow::logLevel(int level) {
+     // Only two log levels so far
     if (level >= 0 && level <= 1) {
         mLogLevel = level;
     }
 }
 
-void BaseOGLWidget::richText(bool enable) {
+void BaseGLWindow::richText(bool enable) {
     mRichText = enable;
 }
-
 /* We receive a message from the logger, we filter it (maybe it's a
- * message not that important). If we decide to react, we emit a new
- * signal, this time with a QString */
-void BaseOGLWidget::messageLogged(const QOpenGLDebugMessage& msg) {
+ * message not that important). If we decide to react, we print to
+ * console */
+void BaseGLWindow::messageLogged(const QOpenGLDebugMessage& msg) {
     // Define the log levels
     if (mLogLevel == 0) {
         if (
@@ -42,21 +41,18 @@ void BaseOGLWidget::messageLogged(const QOpenGLDebugMessage& msg) {
             msg.severity() == QOpenGLDebugMessage::MediumSeverity ||
             msg.severity() == QOpenGLDebugMessage::LowSeverity
             ) {
-            /* In case we want to print to the console */
-            //qDebug().noquote() << formatMsg(msg);
-            //qDebug().noquote() << msg.message();
-            emit newMessage(formatMsg(msg));
+            qDebug().noquote() << formatMsg(msg);
+            qDebug().noquote() << msg.message();
         }
     } else {
-        //qDebug().noquote() << formatMsg(msg);
-        //qDebug().noquote() << msg.message();
-        emit newMessage(formatMsg(msg));
+        qDebug().noquote() << formatMsg(msg);
+        qDebug().noquote() << msg.message();
     }
 
 }
 // Create an string from the actual \class QOpenGLDebugMessage object
 // by taking into account your rich text option
-QString BaseOGLWidget::formatMsg(const QOpenGLDebugMessage& msg) {
+QString BaseGLWindow::formatMsg(const QOpenGLDebugMessage& msg) {
     QString info{""};
 
     info += mRichText ? "<br>" : "\n";
@@ -170,20 +166,18 @@ QString BaseOGLWidget::formatMsg(const QOpenGLDebugMessage& msg) {
 
     return info;
 }
-
 // If the logger was ever created, stop it
-void BaseOGLWidget::stopLog() {
+void BaseGLWindow::stopLog() {
     if (mLogger) {
         mLogger->stopLogging();
     }
 }
-
 // Create the logger and activate it (start logging)
-void BaseOGLWidget::startLog(int level) {
+void BaseGLWindow::startLog(int level) {
     mLogger = new QOpenGLDebugLogger(this);
     if (mLogger->initialize()) {
         connect(mLogger, SIGNAL(messageLogged(QOpenGLDebugMessage)),
-                   this,   SLOT(messageLogged(QOpenGLDebugMessage)));
+                    this,   SLOT(messageLogged(QOpenGLDebugMessage)));
         mLogger->startLogging();
     }
     logLevel(level);
@@ -194,7 +188,7 @@ void BaseOGLWidget::startLog(int level) {
 // (from your actual context).
 // Remember that even if your driver support certain version, you can
 // ask for an older one. Also you can ask for a core or compatibility profile
-QString BaseOGLWidget::versionInfo() {
+QString BaseGLWindow::versionInfo() {
     // Get libraries version
     QString qtVersion{QT_VERSION_STR};
     QString glmVersion = QString::number(GLM_VERSION / 1000) + "." +
@@ -241,48 +235,80 @@ QString BaseOGLWidget::versionInfo() {
     }
     return info;
 }
-
 // In order to use the track ball camera correctly we need to let him know when
 // and where a dragging event started
-void BaseOGLWidget::mousePressEvent(QMouseEvent* event) {
+void BaseGLWindow::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::MouseButton::LeftButton) {
         mBall.startDrag(glm::vec2(event->localPos().x(), event->localPos().y()));
         event->accept();
     }
 }
-
 // In order to use the track ball correctly we need to let him know when
 // a dragging event finishes
-void BaseOGLWidget::mouseReleaseEvent(QMouseEvent* event) {
+void BaseGLWindow::mouseReleaseEvent(QMouseEvent* event) {
     if (event->button() == Qt::MouseButton::LeftButton) {
         mBall.endDrag();
         event->accept();
     }
 }
-
 // We need to register when we are using (editing) the track ball camera's position
-void BaseOGLWidget::mouseMoveEvent(QMouseEvent* event) {
+void BaseGLWindow::mouseMoveEvent(QMouseEvent* event) {
     mBall.drag(glm::vec2(event->localPos().x(), event->localPos().y()));
     event->accept();
 }
-
 // We use the wheel to zoom in/out by changing the camera's fovy (field of view along y axis)
-void BaseOGLWidget::wheelEvent(QWheelEvent* event) {
-    QPoint numDegrees{event->angleDelta() / 16};
+void BaseGLWindow::wheelEvent(QWheelEvent* event) {
+    QPoint numDegrees = event->angleDelta() / 16;
     mFovY += numDegrees.y();
     if (mFovY <= 10.0f) {
         mFovY = 10.0f;
     } else if (mFovY >= 170.0f) {
         mFovY = 170.0f;
     }
+
     mP = glm::perspective(glm::radians(mFovY), width() / float(height()), mNear, mFar);
+
     event->accept();
+}
+
+void BaseGLWindow::keyPressEvent(QKeyEvent* event) {
+    switch(event->key()) {
+        case Qt::Key_Escape:
+            event->accept();
+            this->close();
+        break;
+
+        case Qt::Key_Space:
+        {
+            QImage screenShoot = this->grabFramebuffer();
+            QString fileName{"img_"};
+            fileName += QString("%1").arg(mScreenShoots++, 4, 10, QChar('0'));
+            fileName += ".png";
+            screenShoot.save(fileName);
+            event->accept();
+        }
+        break;
+
+        case Qt::Key_F11:
+        {
+            if (windowState() != Qt::WindowFullScreen) {
+                showFullScreen();
+            } else {
+                showNormal();
+            }
+        }
+        break;
+
+        default:
+            //You did not handle it pass to parent
+            QOpenGLWindow::keyPressEvent(event);
+    }
+
 }
 
 const QVector3D toQt(const glm::vec3& v) {
     return QVector3D(v.x, v.y, v.z);
 }
-
 // Remember Qt and GLM are opposed in row or column order
 const QMatrix4x4 toQt(const glm::mat4& m) {
     return QMatrix4x4(glm::value_ptr(glm::transpose(m)));

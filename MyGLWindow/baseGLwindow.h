@@ -1,24 +1,25 @@
-#ifndef BASEOGLWIDGET_H
-#define BASEOGLWIDGET_H
+#ifndef BASEGLWINDOW_H
+#define BASEGLWINDOW_H
+
+#define GLM_FORCE_PURE
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
 
 #include <QVector3D>
 #include <QMatrix4x4>
 
-#include <QOpenGLWidget>
+#include <QtGui/QOpenGLWindow>
 #include <QtGui/QOpenGLFunctions_4_5_Core>
 #include <QtGui/QOpenGLDebugLogger>
 #include <QtGui/QOpenGLDebugMessage>
 #include <QMouseEvent>
 
 #include "trackball.h"
-
-#include <glm/glm.hpp>
-
-//! Abstracts an OpenGL widget which will be embedded in a \class QWindow
+//!  A base class for a window that will be used to render OpenGL graphics
 /*!
-  This class should be used as a base class when you need a widget to
-  display OpenGL graphics. You do not use this class directly, you need
-  to inherit it.
+  This class should be used as a base class when you need a window to
+  display OpenGL graphics. If you need a widget you sue the other tempate.
+  You do not use this class directly, you need to inherit it.
 
   This class can initialize OpenGL functions, and can be queried for the
   version info. Additionally, manages an OpenGL debug logger which you can
@@ -26,14 +27,17 @@
   already connected to be used with the mouse. Finally, defines some helper
   functions to convert between GLM and Qt data types.
 */
-
-class BaseOGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_5_Core
-{
+class BaseGLWindow : public QOpenGLWindow, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
 
 public:
-    explicit BaseOGLWidget(QWidget* parent = nullptr);
-    ~BaseOGLWidget() override;
+    //! Only constructor
+    /*!
+      Should be called as an inline parameter in the derived class constructor(s)
+    */
+    BaseGLWindow();
+    //! Only destuctor
+    ~BaseGLWindow() override;
     //! Get a string that contains the OpenGL context info.
     /*!
     The string format can be controlled by the rich text option
@@ -62,7 +66,6 @@ protected:
     int mLogLevel;
     //!  Return an OpenGL error message formatted as a \class QString
     QString formatMsg(const QOpenGLDebugMessage& msg);
-
     //Model, View and Projection matrices.
     //Technically, I only need projection here because of trackball, but
     //I place them here to keep the code organized (all matrices in one place)
@@ -73,7 +76,6 @@ protected:
     float mFovY;
     float mNear;
     float mFar;
-
     //!  Trackball object to control the camera movement
     Trackball mBall;
     //To correct control the camera trackball we use this functions
@@ -85,14 +87,19 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     //!  To control camera fovy (which is zoom in and out)
     void wheelEvent(QWheelEvent* event) override;
+    //!  To count the number of screenshot taken
+    int mScreenShoots;
+    //!  To interact wih keyboard.
+    /*!
+        Currentlly, exit application with esc and take screenshoot with space
+    */
+    void keyPressEvent(QKeyEvent* event) override;
 
 protected slots:
     //!  To handle an incoming OpenGL errors
     void messageLogged(const QOpenGLDebugMessage& msg);
-signals:
-    //!  Connect to receive an error as string
-    void newMessage(const QString& error);
 };
+
 
 //! Convert a 3D vector from GLM to a Qt.
 const QVector3D toQt(const glm::vec3& v);
@@ -116,9 +123,9 @@ const glm::mat3 toGLM(const QMatrix3x3& m);
 const glm::quat toGLM(const QQuaternion& q);
 //! Convert a Qt color to a GLM 3D vector.
 /*!
-  The resulting vector is created so that each component is represented with
+  The restulting vector is created where each component is represented with
   floating point values in the range [0,1] representing RGB components
 */
 const glm::vec3 toGLM(const QColor& color);
 
-#endif // BASEOGLWIDGET_H
+#endif //BASEGLWINDOW_H
